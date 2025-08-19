@@ -151,12 +151,6 @@ export default function WaitlistForm() {
               <div className="success-icon">✓</div>
               <h2>Thank You!</h2>
               <p>You've successfully joined the Jurni waitlist. We'll be in touch soon with updates and early access opportunities.</p>
-              <button 
-                className="btn btn-primary"
-                onClick={() => setSubmitStatus('idle')}
-              >
-                Join Another Person
-              </button>
             </div>
           </div>
         </div>
