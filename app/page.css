@@ -1,0 +1,12 @@
+.main {
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--surface-color) 0%, var(--background-color) 100%);
+}
+
+.main > * {
+  margin-bottom: 0;
+}
+
+.main > *:last-child {
+  margin-bottom: 0;
+}
