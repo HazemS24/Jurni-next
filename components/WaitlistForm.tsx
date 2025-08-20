@@ -9,6 +9,7 @@ interface FormData {
   lastName: string
   role: 'investor' | 'employer' | 'applicant'
   heardAbout: string
+  heardAboutOther?: string
   specificInterest: string
 }
 
@@ -18,6 +19,7 @@ interface FieldErrors {
   lastName?: string
   role?: string
   heardAbout?: string
+  heardAboutOther?: string
 }
 
 interface ErrorResponse {
@@ -32,6 +34,7 @@ export default function WaitlistForm() {
     lastName: '',
     role: 'applicant',
     heardAbout: '',
+    heardAboutOther: '',
     specificInterest: ''
   })
   
@@ -40,25 +43,6 @@ export default function WaitlistForm() {
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [errorDetails, setErrorDetails] = useState('')
-
-  const validateField = (name: keyof FormData, value: string): string | undefined => {
-    switch (name) {
-      case 'firstName':
-        return value.trim() ? undefined : 'First name is required'
-      case 'lastName':
-        return value.trim() ? undefined : 'Last name is required'
-      case 'email':
-        if (!value.trim()) return 'Email is required'
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        return emailRegex.test(value) ? undefined : 'Please enter a valid email address'
-      case 'role':
-        return value ? undefined : 'Please select a role'
-      case 'heardAbout':
-        return value.trim() ? undefined : 'Please tell us how you heard about us'
-      default:
-        return undefined
-    }
-  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -74,22 +58,51 @@ export default function WaitlistForm() {
         [name]: undefined
       }))
     }
+
+    // Clear other field when heardAbout changes
+    if (name === 'heardAbout' && value !== 'other') {
+      setFormData(prev => ({
+        ...prev,
+        heardAboutOther: ''
+      }))
+    }
   }
 
   const validateForm = (): boolean => {
     const errors: FieldErrors = {}
     let isValid = true
 
-    Object.keys(formData).forEach(key => {
-      const fieldName = key as keyof FormData
-      if (fieldName !== 'specificInterest') { // Skip optional field
-        const error = validateField(fieldName, formData[fieldName])
-        if (error) {
-          errors[fieldName] = error
-          isValid = false
-        }
+    // Validate required fields
+    if (!formData.firstName.trim()) {
+      errors.firstName = 'First name is required'
+      isValid = false
+    }
+    if (!formData.lastName.trim()) {
+      errors.lastName = 'Last name is required'
+      isValid = false
+    }
+    if (!formData.email.trim()) {
+      errors.email = 'Email is required'
+      isValid = false
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(formData.email)) {
+        errors.email = 'Please enter a valid email address'
+        isValid = false
       }
-    })
+    }
+    if (!formData.role) {
+      errors.role = 'Please select a role'
+      isValid = false
+    }
+    if (!formData.heardAbout) {
+      errors.heardAbout = 'Please tell us how you heard about us'
+      isValid = false
+    }
+    if (formData.heardAbout === 'other' && !formData.heardAboutOther?.trim()) {
+      errors.heardAboutOther = 'Please elaborate on how you heard about us'
+      isValid = false
+    }
 
     setFieldErrors(errors)
     return isValid
@@ -108,12 +121,18 @@ export default function WaitlistForm() {
     setErrorDetails('')
 
     try {
+      // Prepare the data to send
+      const submitData = {
+        ...formData,
+        heardAbout: formData.heardAbout === 'other' ? (formData.heardAboutOther || '') : formData.heardAbout
+      }
+
       const response = await fetch('/api/interests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submitData),
       })
 
       if (response.ok) {
@@ -124,6 +143,7 @@ export default function WaitlistForm() {
           lastName: '',
           role: 'applicant',
           heardAbout: '',
+          heardAboutOther: '',
           specificInterest: ''
         })
         setFieldErrors({})
@@ -238,19 +258,47 @@ export default function WaitlistForm() {
 
             <div className="form-group full-width">
               <label htmlFor="heardAbout">How did you hear about us? *</label>
-              <input
-                type="text"
+              <select
                 id="heardAbout"
                 name="heardAbout"
                 value={formData.heardAbout}
                 onChange={handleInputChange}
-                className={`form-input ${fieldErrors.heardAbout ? 'error' : ''}`}
-                placeholder="e.g., Social media, friend, article, etc."
-              />
+                className={`form-select ${fieldErrors.heardAbout ? 'error' : ''}`}
+              >
+                <option value="">Select an option</option>
+                <option value="search">Search Engine (Google, Safari, Bing, etc…)</option>
+                <option value="instagram">Instagram</option>
+                <option value="tiktok">TikTok</option>
+                <option value="wordofmouth">Word of Mouth</option>
+                <option value="referral">Referral</option>
+                <option value="news">Online News Article / Blog</option>
+                <option value="newsletter">Email Newsletters</option>
+                <option value="sms">SMS Marketing</option>
+                <option value="ads">Online Ads</option>
+                <option value="other">Other</option>
+              </select>
               {fieldErrors.heardAbout && (
                 <div className="field-error">{fieldErrors.heardAbout}</div>
               )}
             </div>
+
+            {formData.heardAbout === 'other' && (
+              <div className="form-group full-width">
+                <label htmlFor="heardAboutOther">Please elaborate on how you heard about us *</label>
+                <input
+                  type="text"
+                  id="heardAboutOther"
+                  name="heardAboutOther"
+                  value={formData.heardAboutOther}
+                  onChange={handleInputChange}
+                  className={`form-input ${fieldErrors.heardAboutOther ? 'error' : ''}`}
+                  placeholder="Please tell us how you heard about Jurni..."
+                />
+                {fieldErrors.heardAboutOther && (
+                  <div className="field-error">{fieldErrors.heardAboutOther}</div>
+                )}
+              </div>
+            )}
 
             <div className="form-group full-width">
               <label htmlFor="specificInterest">What specifically are you looking for?</label>

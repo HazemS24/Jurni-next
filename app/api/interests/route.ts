@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createInterest, emailExists, createInterestsTable } from '@/lib/models';
 import { Interest } from '@/lib/models';
 
+const VALID_HEARD_ABOUT_OPTIONS = [
+  'search', 'instagram', 'tiktok', 'wordofmouth', 'referral', 
+  'news', 'newsletter', 'sms', 'ads', 'other'
+];
+
 export async function POST(request: NextRequest) {
   try {
     // Ensure table exists
@@ -52,6 +57,29 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Validate heardAbout - allow either predefined options or custom text
+    let heardAboutValue = body.heardAbout;
+    
+    // If it's a predefined option, validate it
+    if (VALID_HEARD_ABOUT_OPTIONS.includes(body.heardAbout)) {
+      // This is a valid predefined option
+      heardAboutValue = body.heardAbout;
+    } else {
+      // This might be custom text from "other" selection
+      // Allow it as long as it's not empty and has reasonable length
+      if (!body.heardAbout || body.heardAbout.trim().length < 3) {
+        return NextResponse.json(
+          { 
+            error: 'Please provide more details about how you heard about us',
+            details: 'If you selected "Other", please elaborate with at least 3 characters'
+          },
+          { status: 400 }
+        );
+      }
+      // Use the custom text as the heardAbout value
+      heardAboutValue = body.heardAbout;
+    }
+    
     // Check if email already exists
     const emailCheckResult = await emailExists(body.email);
     if (!emailCheckResult.success) {
@@ -80,7 +108,7 @@ export async function POST(request: NextRequest) {
       first_name: body.firstName,
       last_name: body.lastName,
       role: body.role,
-      heard_about: body.heardAbout,
+      heard_about: heardAboutValue,
       specific_interest: body.specificInterest || null,
     };
     
